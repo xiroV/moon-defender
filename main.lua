@@ -17,7 +17,7 @@ function love.load()
     angle = 0
     window = {width=1280, height=800}
     love.window.setTitle("Moon Defender")
-    love.window.setMode(window.width, window.height)
+    love.window.setMode(window.width, window.height, {msaa=4})
 
     moon = {
         x = window.width/2,

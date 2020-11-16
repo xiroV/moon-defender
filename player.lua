@@ -3,7 +3,13 @@ player = {}
 function player:load()
     player.width = 20
     player.height = 40
-    player.speed = 2
+    player.speed = {
+        cw=0,
+        ccw=0,
+        multiplierInAir=1,
+        multiplierGrounded=20,
+        max=3
+    }
     player.offset = {x=0,y=-50}
     player.x = moon.x - player.width / 2 + player.offset.x
     player.y = moon.y - moon.r - player.height + player.offset.y
@@ -47,20 +53,41 @@ end
 function player:update(dt)
     local moonDistance = math.sqrt(math.pow(moon.x - player.x, 2) + math.pow(moon.y - player.y, 2))
 
+    player.inAir = moonDistance > moon.r + player.height
+
     if (player.isMovingClockwise) then
-        player.angle = player.angle + player.speed * dt
+        if player.speed.cw < player.speed.max then
+            if player.inAir then
+                player.speed.cw = player.speed.cw + dt * player.speed.multiplierInAir
+            else
+                player.speed.cw = player.speed.cw + dt * player.speed.multiplierGrounded
+            end
+        end
+        print(player.speed.cw)
+        player.angle = player.angle + player.speed.cw * dt
         player.x = moonDistance * math.cos(player.angle) + moon.x
         player.y = moonDistance * math.sin(player.angle) + moon.y
     end
     if (player.isMovingCounterClockwise) then
-        player.angle = player.angle - player.speed * dt
+        if player.speed.ccw < player.speed.max then
+            if player.inAir then
+                player.speed.ccw = player.speed.ccw + dt * player.speed.multiplierInAir
+            else
+                player.speed.ccw = player.speed.ccw + dt * player.speed.multiplierGrounded
+            end
+        end
+        player.angle = player.angle - player.speed.ccw * dt
         player.x = moonDistance * math.cos(player.angle) + moon.x
         player.y = moonDistance * math.sin(player.angle) + moon.y
     end
 
+    if not(player.isMovingClockwise) and not(player.isMovingCounterClockwise) then
+        player.speed.cw = 0
+        player.speed.ccw = 0
+    end
+
     local mouse = {x=love.mouse.getX(), y=love.mouse.getY()}
 
-    player.inAir = moonDistance > moon.r + player.height
 
     player.top.x = moon.x + math.cos(player.angle + math.rad(4)) * moonDistance
     player.top.y = moon.y + math.sin(player.angle + math.rad(4)) * moonDistance
@@ -77,15 +104,12 @@ function player:update(dt)
         local xspeed = math.cos(player.angle)
         local yspeed = math.sin(player.angle)
 
-        print(xspeed)
-
         if (player.isMovingCounterClockwise or player.isMovingClockwise) then
-            xspeed = xspeed * 1.5
-            yspeed = yspeed * 1.5
+            xspeed = xspeed * (player.speed.ccw + player.speed.cw)/2
+            yspeed = yspeed * (player.speed.ccw + player.speed.cw)/2
         end
 
         player.velocity.x = player.velocity.x - g 
-        print(player.velocity.x)
         player.x = player.x + player.velocity.x * xspeed * dt
 
         player.velocity.y = player.velocity.y - g
