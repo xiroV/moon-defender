@@ -3,13 +3,24 @@ player = {}
 function player:load()
     player.width = 20
     player.height = 40
-    player.angle = 0
+    player.speed = 2
+    player.offset = {x=0,y=-50}
+    player.x = moon.x - player.width / 2 + player.offset.x
+    player.y = moon.y - moon.r - player.height + player.offset.y
+    player.angle = math.pi + math.pi/2 - 0.07
+    player.top = {
+        x=moon.x + math.cos(player.angle + math.rad(4)) * (moon.r + player.height),
+        y=moon.y + math.sin(player.angle + math.rad(4)) * (moon.r + player.height)
+    }
+    player.gun = {
+        x=moon.x + math.cos(player.angle + math.rad(4)) * (moon.r + player.height-10),
+        y=moon.y + math.sin(player.angle + math.rad(4)) * (moon.r + player.height-10)
+    }
+    player.rotation = math.atan2((moon.y - player.top.y), (moon.x - player.top.x))
     player.aimAngle = 0
-    player.x = window.width/2-player.width/2
-    player.y = window.height-200-player.height
     player.inAir = false
     player.isJumping = false
-    player.velocity = 0
+    player.velocity = {x=0, y=0}
     player.isMovingClockwise = false
     player.isMovingCounterClockwise = false
 
@@ -22,53 +33,85 @@ end
 function player:draw()
     -- Player
     love.graphics.setColor(1, 1, 1)
-    --love.graphics.rectangle("fill", player.x, player.y, player.width, player.height)
-    love.graphics.draw(player.sprite.player, player.x, player.y, player.angle, 1, 1, 0, 0)
+    love.graphics.draw(player.sprite.player, player.x, player.y, player.rotation, 1, 1, -5, 0)
 
     -- Aim line
     love.graphics.setColor(0.2, 0.3, 0.2)
-    love.graphics.line(player.x+player.width/2, player.y+10, love.mouse.getX(), love.mouse.getY())
+    love.graphics.line(player.gun.x, player.gun.y, love.mouse.getX(), love.mouse.getY())
 
     -- Gun
     love.graphics.setColor(0.7, 0.7, 0.7)
-    love.graphics.draw(player.sprite.gun, player.x+player.width/2, player.y+10, player.aimAngle, 1, 1, 0, 5)
+    love.graphics.draw(player.sprite.gun, player.gun.x, player.gun.y, player.aimAngle, 1, 1, 0, 5)
+
+    love.graphics.setColor(1, 0, 0)
+    love.graphics.points(player.top.x, player.top.y)
+
+    love.graphics.setColor(1.0, 0, 0)
 end
 
 function player:update(dt)
-    local p = {x=player.x+player.width/2, y=player.y+10}
+    local moonDistance = math.sqrt(math.pow(moon.x - player.x, 2) + math.pow(moon.y - player.y, 2))
+
+    if (player.isMovingClockwise) then
+        player.angle = player.angle + player.speed * dt
+        player.x = moonDistance * math.cos(player.angle) + moon.x
+        player.y = moonDistance * math.sin(player.angle) + moon.y
+    end
+    if (player.isMovingCounterClockwise) then
+        player.angle = player.angle - player.speed * dt
+        player.x = moonDistance * math.cos(player.angle) + moon.x
+        player.y = moonDistance * math.sin(player.angle) + moon.y
+    end
+
     local mouse = {x=love.mouse.getX(), y=love.mouse.getY()}
 
-    player.aimAngle = math.atan2((mouse.y - p.y), (mouse.x - p.x))
+    player.inAir = moonDistance > moon.r + player.height
 
-    player.inAir = player.y + player.height < moon.y - moon.r
+    player.top.x = moon.x + math.cos(player.angle + math.rad(4)) * moonDistance
+    player.top.y = moon.y + math.sin(player.angle + math.rad(4)) * moonDistance
+
+    player.gun.x = moon.x + math.cos(player.angle + math.rad(4)) * (moonDistance-10)
+    player.gun.y = moon.y + math.sin(player.angle + math.rad(4)) * (moonDistance-10)
+
+    player.aimAngle = math.atan2((mouse.y - player.top.y), (mouse.x - player.top.x))
+    player.rotation = math.atan2((moon.y - player.top.y), (moon.x - player.top.x)) - math.pi/2
+
 
     if (player.inAir) then
-        player.velocity = player.velocity + gravity
-        player.y = player.y + player.velocity * dt
+        local g = 1500/moonDistance
+        local xspeed = math.cos(player.angle)
+        local yspeed = math.sin(player.angle)
+
+        print(xspeed)
+
+        if (player.isMovingCounterClockwise or player.isMovingClockwise) then
+            xspeed = xspeed * 1.5
+            yspeed = yspeed * 1.5
+        end
+
+        player.velocity.x = player.velocity.x - g 
+        print(player.velocity.x)
+        player.x = player.x + player.velocity.x * xspeed * dt
+
+        player.velocity.y = player.velocity.y - g
+        player.y = player.y + player.velocity.y * yspeed * dt
     else
-        player.velocity = 0
+        player.velocity.y = 0
+        player.velocity.x = 0
     end
 
-    if (player.isJumping and not player.inAir) then
-        player.y = player.y - 10
-        player.velocity = -400
+    if moonDistance+2 < moon.r + player.height then
+        player.x = (moon.r + player.height) * math.cos(player.angle) + moon.x + 2
+        player.y = (moon.r + player.height) * math.sin(player.angle) + moon.y + 2
     end
 
-    if player.y < moon.y - moon.r then
-        if (player.isMovingClockwise) then
-            player.x = player.x + 5
-        end
-        if (player.isMovingCounterClockwise) then
-            player.x = player.x - 5
-        end
-    else
-        if (player.isMovingClockwise) then
-            player.x = player.x - 5
-        end
-        if (player.isMovingCounterClockwise) then
-            player.x = player.x + 5
-        end
+    if (player.isJumping and not(player.inAir)) then
+        player.velocity.y = 400
+        player.velocity.x = 400
+        player.x = (moonDistance + 10) * math.cos(player.angle) + moon.x
+        player.y = (moonDistance + 10) * math.sin(player.angle) + moon.y
     end
+
 end
 
 function player:keypressed(key, isrepeat)

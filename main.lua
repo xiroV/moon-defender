@@ -7,20 +7,22 @@ end
 function love.draw()
     love.graphics.setColor(0.8, 0.8, 0.8)
     --love.graphics.circle("fill", window.width/2, window.height*2-200, window.height, 500)
+
     love.graphics.circle("fill", moon.x, moon.y, moon.r, 500)
     player:draw()
 end
 
 function love.load()
     math.randomseed(os.time())
+    angle = 0
     window = {width=1280, height=800}
     love.window.setTitle("Moon Defender")
     love.window.setMode(window.width, window.height)
 
     moon = {
         x = window.width/2,
-        y = window.height-100,
-        r = 100
+        y = window.height/2,
+        r = 50
     }
 
     gravity = 5
